@@ -5,7 +5,7 @@ Public source for the privacy-minimal, first-party audience measurement used by
 
 This repository owns the browser client and collector implementation that runs
 in production. Private infrastructure owns routing, deployment authority,
-daily secret values, live storage, operational reporting, and backups. A pinned
+daily secret values, live storage, reporting, and backups. A pinned
 commit from this repository is imported for each production release; the
 private snapshot is not a second editable implementation.
 
