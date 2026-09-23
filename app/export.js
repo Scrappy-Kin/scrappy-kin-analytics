@@ -9,6 +9,8 @@ const summaries = fs.readdirSync(dataDir)
   .map((name) => {
     const report = JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8'));
     delete report.referrers;
+    delete report.visitors;
+    delete report.unique_visitors;
     return report;
   })
   .filter((report) => report.finalized === true && !('visitors' in report))

@@ -7,23 +7,22 @@ const dataDir = process.env.DATA_DIR || '/data';
 const today = new Date().toISOString().slice(0, 10);
 for (const name of fs.readdirSync(dataDir)) {
   const analytics = /^analytics-(.+)-(\d{4}-\d{2}-\d{2})\.json$/.exec(name);
-  if (analytics && analytics[2] < today) {
+  if (analytics) {
     const target = path.join(dataDir, name);
     const data = JSON.parse(fs.readFileSync(target, 'utf8'));
-    const hadReferrers = Object.prototype.hasOwnProperty.call(data, 'referrers');
-    const hadVisitors = Array.isArray(data.visitors);
+    const hadLegacy = ['referrers', 'visitors', 'unique_visitors']
+      .some((field) => Object.prototype.hasOwnProperty.call(data, field));
+    const wasFinalized = data.finalized === true;
     delete data.referrers;
-    if (hadVisitors) {
-      data.unique_visitors = data.visitors.length;
-      delete data.visitors;
-      data.finalized = true;
-    }
-    if (hadReferrers || hadVisitors) {
+    delete data.visitors;
+    delete data.unique_visitors;
+    if (analytics[2] < today) data.finalized = true;
+    if (hadLegacy || (analytics[2] < today && !wasFinalized)) {
       const temporary = `${target}.tmp`;
       fs.writeFileSync(temporary, `${JSON.stringify(data)}\n`, { mode: 0o600 });
       fs.renameSync(temporary, target);
     }
   }
   const salt = /^salt-(\d{4}-\d{2}-\d{2})$/.exec(name);
-  if (salt && salt[1] !== today) fs.rmSync(path.join(dataDir, name), { force: true });
+  if (salt) fs.rmSync(path.join(dataDir, name), { force: true });
 }

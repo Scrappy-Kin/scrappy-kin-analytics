@@ -40,17 +40,18 @@ async function event(headers = {}, body = { path: '/field-note/' }, site = 'blog
   });
 }
 
-function runClient(script, { stored = null, gpc = false, dnt = '0', pathname = '/', referrer = '' } = {}) {
+function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dnt = '0', pathname = '/', storageFails = false } = {}) {
   const sent = [];
-  const storage = new Map(stored === null ? [] : [['scrappy_kin_analytics_ignore', stored]]);
+  const storage = new Map();
+  if (stored !== null) storage.set('scrappy_kin_analytics_choice', stored);
+  if (legacyIgnore !== null) storage.set('scrappy_kin_analytics_ignore', legacyIgnore);
   const context = {
     Blob,
-    document: { referrer },
     fetch: (...args) => { sent.push(args); return Promise.resolve({ ok: true }); },
     localStorage: {
-      getItem: (key) => storage.get(key) || null,
-      removeItem: (key) => storage.delete(key),
-      setItem: (key, value) => storage.set(key, value)
+      getItem: (key) => { if (storageFails) throw Error('storage blocked'); return storage.get(key) || null; },
+      removeItem: (key) => { if (storageFails) throw Error('storage blocked'); storage.delete(key); },
+      setItem: (key, value) => { if (storageFails) throw Error('storage blocked'); storage.set(key, value); }
     },
     location: { pathname },
     navigator: {
@@ -87,9 +88,10 @@ function runClient(script, { stored = null, gpc = false, dnt = '0', pathname = '
     const dataName = fs.readdirSync(dataDir).find((name) => name.startsWith('analytics-blog.scrappykin.com-'));
     const raw = fs.readFileSync(path.join(dataDir, dataName), 'utf8');
     const data = JSON.parse(raw);
-    assert.equal(data.views, 3);
-    assert.equal(data.visitors.length, 1);
-    assert.equal(data.pages['/field-note'], 3);
+    assert.equal(data.views, 2);
+    assert.equal('visitors' in data, false);
+    assert.equal('unique_visitors' in data, false);
+    assert.equal(data.pages['/field-note'], 2);
     assert.equal('referrers' in data, false);
     assert.equal(data.ignored_automation, 1);
     assert.equal(raw.includes('203.0.113.9'), false);
@@ -99,6 +101,7 @@ function runClient(script, { stored = null, gpc = false, dnt = '0', pathname = '
     assert.equal(raw.includes('example.invalid'), false);
     assert.equal(raw.includes('forbidden-place'), false);
     assert.equal(raw.includes('should-not-be-retained.example'), false);
+    assert.equal(fs.readdirSync(dataDir).some((name) => name.startsWith('salt-')), false);
 
     const mainSiteName = fs.readdirSync(dataDir).find((name) => name.startsWith('analytics-scrappykin.com-'));
     const mainSite = JSON.parse(fs.readFileSync(path.join(dataDir, mainSiteName), 'utf8'));
@@ -112,7 +115,7 @@ function runClient(script, { stored = null, gpc = false, dnt = '0', pathname = '
     const finalize = spawn(process.execPath, ['app/finalize.js'], { cwd: __dirname, env: { ...process.env, DATA_DIR: dataDir } });
     assert.equal(await new Promise((resolve) => finalize.on('exit', resolve)), 0);
     const finalized = JSON.parse(fs.readFileSync(oldReport, 'utf8'));
-    assert.equal(finalized.unique_visitors, 2);
+    assert.equal('unique_visitors' in finalized, false);
     assert.equal('visitors' in finalized, false);
     assert.equal('referrers' in finalized, false);
     assert.equal(fs.existsSync(path.join(dataDir, `salt-${yesterday}`)), false);
@@ -123,28 +126,50 @@ function runClient(script, { stored = null, gpc = false, dnt = '0', pathname = '
     assert.equal(await new Promise((resolve) => exporter.on('exit', resolve)), 0);
     const archive = JSON.parse(exported);
     assert.equal(archive.summaries.length, 1);
-    assert.equal(exported.includes('visitors'), true);
+    assert.equal(exported.includes('unique_visitors'), false);
     assert.equal(exported.includes('"visitors"'), false);
     assert.equal(exported.includes('referrers'), false);
     assert.equal(exported.includes('legacy.example'), false);
 
     const script = await (await fetch(`http://127.0.0.1:${port}/script.js`)).text();
     assert.match(script, /globalPrivacyControl/);
-    assert.match(script, /scrappy_kin_analytics_ignore/);
+    assert.match(script, /scrappy_kin_analytics_choice/);
     assert.match(script, /help\\\/privacy/);
     assert.equal(script.includes('document.referrer'), false);
     assert.equal(script.includes('referrer'), false);
-    assert.equal(runClient(script).sent.length, 1);
-    assert.equal(runClient(script, { stored: 'true' }).sent.length, 0);
+    assert.equal(runClient(script).sent.length, 0);
+    assert.equal(runClient(script, { legacyIgnore: 'true' }).sent.length, 0);
+    assert.equal(runClient(script, { stored: 'declined' }).sent.length, 0);
+    assert.equal(runClient(script, { storageFails: true }).sent.length, 0);
+    assert.equal(runClient(script, { stored: 'accepted' }).sent.length, 1);
     assert.equal(runClient(script, { gpc: true }).sent.length, 0);
     assert.equal(runClient(script, { dnt: '1' }).sent.length, 0);
     assert.equal(runClient(script, { pathname: '/privacy' }).sent.length, 0);
     assert.equal(runClient(script, { pathname: '/ghost/settings' }).sent.length, 0);
     const controls = runClient(script);
-    controls.context.window.scrappyKinAnalytics.exclude();
-    assert.equal(controls.storage.get('scrappy_kin_analytics_ignore'), 'true');
-    controls.context.window.scrappyKinAnalytics.include();
-    assert.equal(controls.storage.has('scrappy_kin_analytics_ignore'), false);
+    const analytics = controls.context.window.scrappyKinAnalytics;
+    assert.equal(analytics.choice(), 'unset');
+    assert.equal(analytics.accept(), true);
+    assert.equal(controls.sent.length, 1);
+    assert.equal(analytics.accept(), true);
+    assert.equal(controls.sent.length, 1);
+    assert.equal(analytics.decline(), true);
+    assert.equal(analytics.choice(), 'declined');
+    assert.equal(controls.storage.get('scrappy_kin_analytics_choice'), 'declined');
+    assert.equal(runClient(script, { stored: 'accepted', gpc: true }).sent.length, 0);
+    assert.equal(runClient(script, { stored: 'accepted', dnt: '1' }).sent.length, 0);
+    assert.equal(runClient(script, { stored: 'accepted', pathname: '/privacy' }).sent.length, 0);
+    const failed = runClient(script, { storageFails: true });
+    assert.equal(failed.context.window.scrappyKinAnalytics.accept(), false);
+    assert.equal(failed.sent.length, 0);
+    const migrated = runClient(script, { legacyIgnore: 'true' });
+    assert.equal(migrated.context.window.scrappyKinAnalytics.choice(), 'declined');
+    assert.equal(migrated.context.window.scrappyKinAnalytics.accept(), true);
+    assert.equal(migrated.storage.has('scrappy_kin_analytics_ignore'), false);
+    const copy = analytics.copy('scrappykin.com');
+    assert.equal(copy.heading, 'May we count your anonymous page visits to scrappykin.com?');
+    assert.equal(copy.counted.length, 2);
+    assert.equal(copy.notCounted.length, 3);
     console.log('privacy analytics tests passed');
   } finally {
     child.kill('SIGTERM');

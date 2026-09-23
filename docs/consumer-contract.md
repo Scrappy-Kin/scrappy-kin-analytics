@@ -1,72 +1,51 @@
 # Analytics consumer contract
 
-This is the approved target contract for products that use Scrappy Kin's
-first-party measurement. A product is not eligible merely because the collector
-can technically accept its events. Existing publication consumers predate the
-explicit-choice requirement and must be migrated before they satisfy this
-contract; the document does not claim that migration is already live.
+This is the approved target for `.com`, Blog, and Chess, **not yet a description
+of live production**. The sites and private deployment must migrate together.
 
-## Ethical boundaries
+## Promise and choice
 
-- Measurement exists to understand whether Scrappy Kin's work is being used,
-  not who is using it.
-- Collection begins only after an explicit local choice. Dismissal, uncertainty,
-  or failure leaves collection off.
-- Accepting and declining must be equally available. The interface must not
-  visually or verbally steer people toward acceptance.
-- Global Privacy Control and Do Not Track remain automatic exclusions.
-- A later decline stops future collection. Finalized anonymous aggregates cannot
-  be located or removed for one person because no identity is retained.
+- We measure consented online page loads to learn whether our work is used,
+  not who uses it. We do not estimate unique visitors or count in-page activity.
+- No choice, Decline, dismissal, unavailable storage, Global Privacy Control,
+  or Do Not Track means no event. Accept and Decline have equal visual weight.
+- Each site has a prominent first-use panel and a visible, keyboard-operable
+  **Privacy choices** footer control that reopens that same panel. Chess may
+  also link to it from Settings. Choices are local to each site's origin.
+- A later decline stops future collection. We cannot find or subtract one
+  person's contribution from aggregate counts because no identity is retained.
 
-## Disclosure and choice design
+[`app/client.js`](../app/client.js) owns the exact shared copy, consent state,
+and event gate. Render `copy(siteName)` as text, keeping the two short bullet
+sections and the explanation of why measurement helps. Sites own visual style
+and accessibility, not separate wording or a second storage key. Do not infer
+consent from closing the panel. A first-load Accept counts at most once.
 
-The first-use choice must state, in plain language and without requiring a
-scroll:
+## Data and ownership
 
-1. the exact signals retained;
-2. why Scrappy Kin wants them;
-3. how same-day anonymous visitor estimation works;
-4. the important things that are not collected; and
-5. that declining turns measurement off.
+- The only browser event field is the public page path. The collector rejects
+  privacy/admin paths, strips query strings and fragments, and retains daily
+  page-load totals, bounded normalized-path counts, and ignored-automation
+  counts. It transiently checks the browser description for known bots. It
+  does not read network addresses for analytics or create visitor identifiers.
+- No referrers, accounts, cookies, location, browser/device category, full URL,
+  cross-site history, Chess gameplay events, or raw event archive.
+- This repository owns copy/state, browser client, collector, data lifecycle,
+  and tests. Each site owns script inclusion, panel presentation, footer
+  control, and Privacy Policy/Terms links. Private infrastructure owns allowed
+  sites, routing, storage, reporting, backups, and deployment authority.
+- Adding a consumer, event, or dimension requires founder-approved scope.
 
-Do not summarize this as "anonymous tracking." Products must also provide a
-durable settings surface where the current choice can be inspected or changed.
+## Verification and migration
 
-## Implementation rules
+Tests must establish: no event before acceptance or after decline; automatic
+privacy signals and storage failure suppress events; first-load acceptance
+counts once; legacy exclusions remain off; no unapproved field enters storage;
+and legacy salts, visitor tokens, unique-visitor totals, and referrers are
+removed from active storage and exports.
 
-- Each product owns its script inclusion, first-use choice, durable control, and
-  links to Scrappy Kin's Privacy Policy and Terms.
-- This repository owns the browser client, collector, data lifecycle, shared
-  contract, and invariant tests.
-- Private infrastructure owns allowed-site configuration, routing, storage,
-  backups, reporting, deployment authority, and pinned production snapshots.
-- A newly allowed site must fail closed until its approved policy is present.
-- Site namespaces and daily visitor key material must remain isolated even when
-  consumers share one implementation.
-- Client and collector boundaries must both reject fields outside the approved
-  policy.
-
-## Currently collected data
-
-The publication configuration retains daily views, anonymous daily visitor
-totals, normalized public page paths, and ignored-automation counts. During the
-current UTC day it temporarily retains unlinkable daily visitor tokens.
-
-Referring domains are not collected or retained. The collector does not retain
-raw network addresses, browser descriptions, geography, device or browser
-categories, accounts, cookies, query strings, full URLs, cross-site history, or
-a raw event archive.
-
-Interactive products require their own founder-approved data policy before
-integration. The existence of this contract is not approval for a new consumer.
-
-## Verification expectations
-
-Focused tests must prove that:
-
-- no request is sent before acceptance or after decline;
-- GPC and DNT suppress collection;
-- unexpected fields do not enter retained data;
-- each consumer retains only its approved dimensions;
-- daily visitor material cannot be compared across site namespaces; and
-- finalization destroys daily secrets and visitor tokens before backup/export.
+The VPS custodian must separately inspect proxy/access logs, historical
+backups, cached old clients, reporting, and the release cutover. Public source
+and release receipts improve inspectability and traceability; neither alone
+proves what production runs. Do not claim that Scrappy Kin as a whole has no
+way to distinguish visitors without checking the surrounding systems.
