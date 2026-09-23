@@ -111,6 +111,21 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
     assert.equal(mainSite.site, 'scrappykin.com');
     assert.equal(mainSite.views, 1);
 
+    const today = new Date().toISOString().slice(0, 10);
+    fs.writeFileSync(path.join(dataDir, dataName), JSON.stringify({
+      ...data, visitors: ['legacy-token'], unique_visitors: 1, referrers: { 'legacy.example': 1 }
+    }));
+    fs.writeFileSync(path.join(dataDir, `salt-${today}`), 'legacy-secret');
+    const scrubCurrent = spawn(process.execPath, ['app/finalize.js'], { cwd: __dirname, env: { ...process.env, DATA_DIR: dataDir } });
+    assert.equal(await new Promise((resolve) => scrubCurrent.on('exit', resolve)), 0);
+    const scrubbed = JSON.parse(fs.readFileSync(path.join(dataDir, dataName), 'utf8'));
+    assert.equal(scrubbed.views, 2);
+    assert.equal('visitors' in scrubbed, false);
+    assert.equal('unique_visitors' in scrubbed, false);
+    assert.equal('referrers' in scrubbed, false);
+    assert.equal('finalized' in scrubbed, false);
+    assert.equal(fs.existsSync(path.join(dataDir, `salt-${today}`)), false);
+
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const oldReport = path.join(dataDir, `analytics-blog.scrappykin.com-${yesterday}.json`);
     fs.writeFileSync(oldReport, JSON.stringify({ site: 'blog.scrappykin.com', day: yesterday, views: 3, visitors: ['one', 'two'], pages: { '/old': 3 }, referrers: { 'legacy.example': 3 }, ignored_automation: 0 }));
