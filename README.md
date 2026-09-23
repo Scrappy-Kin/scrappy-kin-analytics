@@ -43,6 +43,20 @@ The collector accepts events only for infrastructure-configured site
 namespaces. Adding a consumer is a privacy and deployment decision, not merely
 a client-side integration.
 
+## Deferred Chess source-attribution gate
+
+Chess does not inherit publication-site referrer collection by default. Do not
+build or enable a Chess source taxonomy, low-volume suppression, or related
+reporting until consented Chess measurement records at least 10 anonymous daily
+visitors in one UTC day. Reaching that threshold opens a new review; it does not
+authorize source collection.
+
+If source attribution is later approved, retain a coarse source category only
+when at least 10 consenting anonymous visitors are attributed to that category
+in the same UTC day. Before final storage, discard category-specific counts
+below the threshold while preserving the overall daily load and visitor totals.
+Never accumulate suppressed categories across days to make them reportable.
+
 ## Test
 
 Run the focused privacy-invariant suite with Node.js 20 or later:
