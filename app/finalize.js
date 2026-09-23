@@ -10,10 +10,15 @@ for (const name of fs.readdirSync(dataDir)) {
   if (analytics && analytics[2] < today) {
     const target = path.join(dataDir, name);
     const data = JSON.parse(fs.readFileSync(target, 'utf8'));
-    if (Array.isArray(data.visitors)) {
+    const hadReferrers = Object.prototype.hasOwnProperty.call(data, 'referrers');
+    const hadVisitors = Array.isArray(data.visitors);
+    delete data.referrers;
+    if (hadVisitors) {
       data.unique_visitors = data.visitors.length;
       delete data.visitors;
       data.finalized = true;
+    }
+    if (hadReferrers || hadVisitors) {
       const temporary = `${target}.tmp`;
       fs.writeFileSync(temporary, `${JSON.stringify(data)}\n`, { mode: 0o600 });
       fs.renameSync(temporary, target);

@@ -11,25 +11,26 @@ private snapshot is not a second editable implementation.
 
 ## Data flow
 
-The generated browser client sends only the public page path and a broad
-referring hostname. It sends nothing when Global Privacy Control, Do Not Track,
-or the browser-local exclusion preference is active, and it excludes privacy
-and administration routes.
+The generated browser client sends only the public page path. It sends nothing
+when Global Privacy Control, Do Not Track, or the browser-local exclusion
+preference is active, and it excludes privacy and administration routes.
 
 The collector briefly receives the network address and browser description
 needed to answer the request. It combines those values in memory with the site
 name and a random daily secret to estimate anonymous visitors during one UTC
 day. Raw request identity is not written to analytics storage.
 
-Current-day storage contains aggregate views, normalized public paths, broad
-referring domains, ignored-automation counts, and unlinkable daily visitor
-tokens. At day close, the secret and visitor tokens are destroyed and replaced
-by one anonymous daily visitor total. Only finalized aggregates are eligible
-for backup.
+Current-day storage contains aggregate views, normalized public paths,
+ignored-automation counts, and unlinkable daily visitor tokens. At day close,
+the secret and visitor tokens are destroyed and replaced by one anonymous daily
+visitor total. Only finalized aggregates are eligible for backup.
 
-The implementation does not collect geography, browser or device categories,
-account identity, cookies, query strings, full URLs, cross-site history, or a
-raw event archive.
+The implementation does not collect referring domains, geography, browser or
+device categories, account identity, cookies, query strings, full URLs,
+cross-site history, or a raw event archive.
+
+The shared consumer contract is documented in
+[`docs/consumer-contract.md`](docs/consumer-contract.md).
 
 ## Trust limits
 
@@ -45,11 +46,11 @@ a client-side integration.
 
 ## Deferred Chess source-attribution gate
 
-Chess does not inherit publication-site referrer collection by default. Do not
-build or enable a Chess source taxonomy, low-volume suppression, or related
-reporting until consented Chess measurement records at least 10 anonymous daily
-visitors in one UTC day. Reaching that threshold opens a new review; it does not
-authorize source collection.
+Referrer collection is currently off for every consumer. Do not build or enable
+a Chess source taxonomy, low-volume suppression, or related reporting until
+consented Chess measurement records at least 10 anonymous daily visitors in one
+UTC day. Reaching that threshold opens a new review; it does not authorize
+source collection or create a Chess-specific exception to the shared policy.
 
 If source attribution is later approved, retain a coarse source category only
 when at least 10 consenting anonymous visitors are attributed to that category

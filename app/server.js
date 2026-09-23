@@ -30,9 +30,7 @@ const CLIENT_SCRIPT = String.raw`(() => {
   };
   if (excluded() || navigator.globalPrivacyControl === true || navigator.doNotTrack === '1') return;
   if (/^\/ghost(\/|$)/.test(location.pathname) || /^\/privacy(?:[./]|$)/.test(location.pathname) || /^\/help\/privacy(?:[/-]|$)/.test(location.pathname)) return;
-  let referrer = 'direct';
-  try { if (document.referrer) referrer = new URL(document.referrer).hostname; } catch (_) {}
-  const body = JSON.stringify({ path: location.pathname, referrer });
+  const body = JSON.stringify({ path: location.pathname });
   if (navigator.sendBeacon) {
     navigator.sendBeacon('/_analytics/event', new Blob([body], { type: 'application/json' }));
   } else {
@@ -55,13 +53,6 @@ function safePath(value) {
   if (/[\u0000-\u001f\u007f]/.test(withoutQuery)) return null;
   if (/^\/ghost(\/|$)/.test(withoutQuery) || /^\/privacy(?:[./]|$)/.test(withoutQuery) || /^\/help\/privacy(?:[/-]|$)/.test(withoutQuery)) return null;
   return withoutQuery.length > 1 ? withoutQuery.replace(/\/+$/, '') : '/';
-}
-
-function safeReferrer(value, site) {
-  if (!value || value === 'direct') return 'direct';
-  const host = String(value).toLowerCase().replace(/\.$/, '');
-  if (host === site) return 'internal';
-  return /^[a-z0-9.-]{1,253}$/.test(host) ? host : 'other';
 }
 
 function clientIp(request) {
@@ -90,12 +81,14 @@ function dailySalt(day) {
 }
 
 function emptyDay(site, day) {
-  return { site, day, views: 0, visitors: [], pages: {}, referrers: {}, ignored_automation: 0 };
+  return { site, day, views: 0, visitors: [], pages: {}, ignored_automation: 0 };
 }
 
 function readDay(site, day) {
   try {
-    return JSON.parse(fs.readFileSync(dataPath(site, day), 'utf8'));
+    const data = JSON.parse(fs.readFileSync(dataPath(site, day), 'utf8'));
+    delete data.referrers;
+    return data;
   } catch (error) {
     if (error.code === 'ENOENT') return emptyDay(site, day);
     throw error;
@@ -120,10 +113,15 @@ function finalizeOldDays(today) {
     if (analytics && analytics[2] < today) {
       const target = path.join(DATA_DIR, name);
       const data = JSON.parse(fs.readFileSync(target, 'utf8'));
-      if (Array.isArray(data.visitors)) {
+      const hadReferrers = Object.prototype.hasOwnProperty.call(data, 'referrers');
+      const hadVisitors = Array.isArray(data.visitors);
+      delete data.referrers;
+      if (hadVisitors) {
         data.unique_visitors = data.visitors.length;
         delete data.visitors;
         data.finalized = true;
+      }
+      if (hadReferrers || hadVisitors) {
         const temporary = `${target}.tmp`;
         fs.writeFileSync(temporary, `${JSON.stringify(data)}\n`, { mode: 0o600 });
         fs.renameSync(temporary, target);
@@ -148,7 +146,6 @@ function record(event) {
     data.views += 1;
     if (!data.visitors.includes(token)) data.visitors.push(token);
     incrementDimension(data.pages, event.page);
-    incrementDimension(data.referrers, event.referrer);
   }
   writeDay(event.site, day, data);
 }
@@ -195,7 +192,6 @@ const server = http.createServer(async (request, response) => {
     const event = {
       site,
       page,
-      referrer: safeReferrer(payload.referrer, site),
       ip: clientIp(request),
       userAgent: String(request.headers['user-agent'] || ''),
       automation: BOT_PATTERN.test(String(request.headers['user-agent'] || ''))
