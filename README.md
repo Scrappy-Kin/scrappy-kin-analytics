@@ -20,7 +20,9 @@ copy rather than forking the promise. Unset, declined, unavailable storage,
 Global Privacy Control, and Do Not Track all send nothing. Privacy and
 administration routes are excluded. Legacy browser exclusions remain declined.
 
-The browser sends only the public page path after acceptance. The collector
+The browser sends only the public page path and a non-retained consent-protocol
+version after acceptance. The collector rejects unversioned legacy requests,
+including cached send-by-default clients. The collector
 increments a daily page-load total and normalized public-path count. It uses
 the browser description transiently to omit known automation, but creates no
 visitor token or unique-visitor estimate and does not read network addresses

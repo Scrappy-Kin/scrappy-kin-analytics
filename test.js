@@ -26,7 +26,7 @@ async function waitForHealth() {
   throw new Error('server did not become healthy');
 }
 
-async function event(headers = {}, body = { path: '/field-note/' }, site = 'blog.scrappykin.com') {
+async function event(headers = {}, body = { path: '/field-note/' }, site = 'blog.scrappykin.com', withContract = true) {
   return fetch(`http://127.0.0.1:${port}/event`, {
     method: 'POST',
     headers: {
@@ -36,7 +36,7 @@ async function event(headers = {}, body = { path: '/field-note/' }, site = 'blog
       'x-forwarded-for': '203.0.113.9',
       ...headers
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(withContract ? { ...body, contract: 'consent-v1' } : body)
   });
 }
 
@@ -71,6 +71,7 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
     await waitForHealth();
     assert.equal((await event()).status, 204);
     assert.equal((await event()).status, 204);
+    assert.equal((await event({}, { path: '/legacy' }, 'blog.scrappykin.com', false)).status, 204);
     assert.equal((await event({ 'sec-gpc': '1' })).status, 204);
     assert.equal((await event({ dnt: '1' })).status, 204);
     assert.equal((await event({ 'user-agent': 'FriendlyBot' })).status, 204);
@@ -89,6 +90,7 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
     const raw = fs.readFileSync(path.join(dataDir, dataName), 'utf8');
     const data = JSON.parse(raw);
     assert.equal(data.views, 2);
+    assert.equal(data.pages['/legacy'], undefined);
     assert.equal('visitors' in data, false);
     assert.equal('unique_visitors' in data, false);
     assert.equal(data.pages['/field-note'], 2);
@@ -101,6 +103,7 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
     assert.equal(raw.includes('example.invalid'), false);
     assert.equal(raw.includes('forbidden-place'), false);
     assert.equal(raw.includes('should-not-be-retained.example'), false);
+    assert.equal(raw.includes('consent-v1'), false);
     assert.equal(fs.readdirSync(dataDir).some((name) => name.startsWith('salt-')), false);
 
     const mainSiteName = fs.readdirSync(dataDir).find((name) => name.startsWith('analytics-scrappykin.com-'));
@@ -151,6 +154,8 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
     assert.equal(analytics.choice(), 'unset');
     assert.equal(analytics.accept(), true);
     assert.equal(controls.sent.length, 1);
+    assert.equal(controls.sent[0][0], '/_analytics/event');
+    assert.deepEqual(JSON.parse(await controls.sent[0][1].text()), { path: '/', contract: 'consent-v1' });
     assert.equal(analytics.accept(), true);
     assert.equal(controls.sent.length, 1);
     assert.equal(analytics.decline(), true);

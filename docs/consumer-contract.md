@@ -23,7 +23,9 @@ consent from closing the panel. A first-load Accept counts at most once.
 
 ## Data and ownership
 
-- The only browser event field is the public page path. The collector rejects
+- The only measurement field is the public page path. A non-retained
+  `consent-v1` protocol marker lets the collector reject legacy send-by-default
+  clients; it is not proof of a person's consent. The collector rejects
   privacy/admin paths, strips query strings and fragments, and retains daily
   page-load totals, bounded normalized-path counts, and ignored-automation
   counts. It transiently checks the browser description for known bots. It

@@ -25,7 +25,7 @@
   function countThisLoad() {
     if (sentThisLoad || choice() !== 'accepted' || signalsBlocked() || blockedPath.test(location.pathname)) return;
     sentThisLoad = true;
-    const body = JSON.stringify({ path: location.pathname });
+    const body = JSON.stringify({ path: location.pathname, contract: 'consent-v1' });
     if (navigator.sendBeacon) {
       navigator.sendBeacon('/_analytics/event', new Blob([body], { type: 'application/json' }));
     } else {

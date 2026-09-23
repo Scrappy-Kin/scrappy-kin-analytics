@@ -145,7 +145,8 @@ const server = http.createServer(async (request, response) => {
   try {
     const payload = JSON.parse(await collectBody(request));
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
-        Object.keys(payload).length !== 1 || !Object.prototype.hasOwnProperty.call(payload, 'path')) {
+        Object.keys(payload).length !== 2 || payload.contract !== 'consent-v1' ||
+        !Object.prototype.hasOwnProperty.call(payload, 'path')) {
       return respond(response, 204);
     }
     const page = safePath(payload.path);
