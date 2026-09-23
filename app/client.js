@@ -59,7 +59,15 @@
       ],
       decline: "Don’t count my visits",
       accept: 'Count my visits',
-      change: "You can change your choice using Privacy choices in this site's footer."
+      change: "You can change your choice using Privacy choices in this site's footer.",
+      choices: 'Privacy choices',
+      privacyPolicy: 'Privacy Policy',
+      terms: 'Terms',
+      acceptedStatus: 'Page visits are counted on this site.',
+      declinedStatus: 'Page visits are not counted on this site.',
+      unsetStatus: 'No choice saved. Page visits are not counted.',
+      unavailableStatus: 'Your choice could not be saved. Page visits are not counted.',
+      signalStatus: 'Your browser privacy signal keeps measurement off.'
     };
   }
 
