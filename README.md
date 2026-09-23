@@ -36,7 +36,8 @@ raw event archive.
 Public source makes the claimed behavior inspectable; it does not prove which
 commit a particular server runs or that surrounding proxies, logs, backups,
 and deployment controls preserve the same boundary. Production receipts and
-infrastructure inspection remain necessary.
+infrastructure inspection improve operational traceability; neither
+independently proves what a running service does.
 
 The collector accepts events only for infrastructure-configured site
 namespaces. Adding a consumer is a privacy and deployment decision, not merely
