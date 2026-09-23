@@ -9,6 +9,8 @@ of live production**. The sites and private deployment must migrate together.
   not who uses it. We do not estimate unique visitors or count in-page activity.
 - No choice, Decline, dismissal, unavailable storage, Global Privacy Control,
   or Do Not Track means no event. Accept and Decline have equal visual weight.
+- Do not auto-prompt when GPC or DNT is active; the footer control still opens
+  the panel and explains that the browser signal keeps measurement off.
 - Each site has a prominent first-use panel and a visible, keyboard-operable
   **Privacy choices** footer control that reopens that same panel. Chess may
   also link to it from Settings. Choices are local to each site's origin.
