@@ -112,10 +112,9 @@ Shutdown is capped at 15 seconds and exits unsuccessfully if persistence fails
 or the deadline expires. Deployment must allow more than 15 seconds of grace.
 
 **Exactly one collector owns writes to the data directory.** Do not run
-multiple replicas against it or execute `node app/finalize.js` while the
-collector is running. That command is offline maintenance; routine daily
-finalization now belongs to the collector. Read-only reporting/export can
-continue. Before deploying this revision, the infrastructure owner must check
+multiple replicas against it. Startup cleanup and daily finalization belong
+to the collector; no standalone finalization command is shipped. Read-only
+reporting/export can continue. Before deploying this revision, the infrastructure owner must check
 external writers/finalizer schedules, shutdown grace, resource isolation and
 proxy limits. The batching change requires no browser client or consent-copy
 change.

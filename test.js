@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
 const { spawn } = require('node:child_process');
+const { createStore } = require('./app/storage');
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-analytics-'));
 const port = 19000 + Math.floor(Math.random() * 1000);
@@ -123,8 +124,7 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
       ...data, visitors: ['legacy-token'], unique_visitors: 1, referrers: { 'legacy.example': 1 }
     }));
     fs.writeFileSync(path.join(dataDir, `salt-${today}`), 'legacy-secret');
-    const scrubCurrent = spawn(process.execPath, ['app/finalize.js'], { cwd: __dirname, env: { ...process.env, DATA_DIR: dataDir } });
-    assert.equal(await new Promise((resolve) => scrubCurrent.on('exit', resolve)), 0);
+    await createStore({ dataDir, sites: new Set(['blog.scrappykin.com', 'scrappykin.com']) });
     const scrubbed = JSON.parse(fs.readFileSync(path.join(dataDir, dataName), 'utf8'));
     assert.equal(scrubbed.views, 2);
     assert.equal('visitors' in scrubbed, false);
@@ -137,8 +137,7 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
     const oldReport = path.join(dataDir, `analytics-blog.scrappykin.com-${yesterday}.json`);
     fs.writeFileSync(oldReport, JSON.stringify({ site: 'blog.scrappykin.com', day: yesterday, views: 3, visitors: ['one', 'two'], pages: { '/old': 3 }, referrers: { 'legacy.example': 3 }, ignored_automation: 0 }));
     fs.writeFileSync(path.join(dataDir, `salt-${yesterday}`), 'do-not-keep');
-    const finalize = spawn(process.execPath, ['app/finalize.js'], { cwd: __dirname, env: { ...process.env, DATA_DIR: dataDir } });
-    assert.equal(await new Promise((resolve) => finalize.on('exit', resolve)), 0);
+    await createStore({ dataDir, sites: new Set(['blog.scrappykin.com', 'scrappykin.com']) });
     const finalized = JSON.parse(fs.readFileSync(oldReport, 'utf8'));
     assert.equal('unique_visitors' in finalized, false);
     assert.equal('visitors' in finalized, false);
