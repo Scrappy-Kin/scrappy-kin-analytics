@@ -1,7 +1,7 @@
 # Analytics consumer contract
 
-This is the approved target for `.com`, Blog, and Chess, **not yet a description
-of live production**. The sites and private deployment must migrate together.
+This is the shared contract for `.com`, Blog, and Chess. Consult the private
+deployment receipt to identify the live implementation revision.
 
 ## Promise and choice
 

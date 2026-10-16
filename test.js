@@ -69,6 +69,7 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
 (async () => {
   try {
     await waitForHealth();
+    const script = await (await fetch(`http://127.0.0.1:${port}/script.js`)).text();
     assert.equal((await event()).status, 204);
     assert.equal((await event()).status, 204);
     assert.equal((await event({}, { path: '/legacy' }, 'blog.scrappykin.com', false)).status, 204);
@@ -85,6 +86,12 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
       geography: 'forbidden-place'
     })).status, 204);
     assert.equal((await event({}, { path: '/' }, 'scrappykin.com')).status, 204);
+
+    // Acceptance updates memory; orderly shutdown persists the batch.
+    assert.equal(fs.readdirSync(dataDir).filter(name => name.endsWith('.json')).length, 0);
+    const stopped = new Promise(resolve => child.once('exit', resolve));
+    child.kill('SIGTERM');
+    assert.equal(await stopped, 0);
 
     const dataName = fs.readdirSync(dataDir).find((name) => name.startsWith('analytics-blog.scrappykin.com-'));
     const raw = fs.readFileSync(path.join(dataDir, dataName), 'utf8');
@@ -149,7 +156,6 @@ function runClient(script, { stored = null, legacyIgnore = null, gpc = false, dn
     assert.equal(exported.includes('referrers'), false);
     assert.equal(exported.includes('legacy.example'), false);
 
-    const script = await (await fetch(`http://127.0.0.1:${port}/script.js`)).text();
     assert.match(script, /globalPrivacyControl/);
     assert.match(script, /scrappy_kin_analytics_choice/);
     assert.match(script, /help\\\/privacy/);

@@ -1,9 +1,8 @@
 # Scrappy Kin Analytics
 
 Public source for consent-first, first-party page-visit measurement for
-[scrappykin.com](https://scrappykin.com), the Blog, and Chess. The new consent
-contract is approved but **not yet a claim about live production**; the three
-sites and private deployment must migrate together.
+[scrappykin.com](https://scrappykin.com), the Blog, and Chess. Consult the
+private deployment receipt to identify the live source revision.
 
 This repository owns the browser client and collector implementation that runs
 in production. Private infrastructure owns routing, deployment authority,
@@ -68,7 +67,58 @@ Run the focused privacy-invariant suite with Node.js 20 or later:
 
 ```bash
 node test.js
+node --test test-storage.js test-http.js
 ```
+
+These use temporary synthetic storage and loopback HTTP. They verify consent,
+batching, write recovery, rollover, restart, shutdown, and request bounds; they
+are not pressure tests or a production capacity claim.
+
+## Collector operation
+
+The collector loads today's aggregates once and increments bounded counters in
+memory. One asynchronous flush every 60 seconds replaces each changed site's
+JSON file through a temporary file and rename. Slow flushes coalesce; there is
+no queue or archive of individual events. New arrivals during a snapshot remain
+dirty for the next flush. Failed writes keep the full aggregate for retry,
+without replaying increments. `/health` returns 503 after a failed flush until
+a flush succeeds; `/script.js` can still be served.
+
+A 204 for a valid event means accepted into memory, **not persisted to disk**.
+A sudden process crash normally loses up to about a minute of recent counts;
+stalled or failed storage can extend that window. Live disk reports lag for
+the same reason. Atomic replacement avoids partial target JSON; there is no
+`fsync` or power-failure durability promise. This tradeoff is intentional for
+approximate page counts.
+
+Startup scrubs legacy fields from all daily files, including today, removes
+legacy salts, and finalizes earlier days. The periodic flush or first event
+after UTC midnight flushes and finalizes the prior day before loading the new
+one. New-day requests wait for that transition within the admission limit;
+failed rollover returns 503 until it can recover. A backward UTC day change
+rejects recording rather than mixing days. Memory holds only the configured
+sites' active day, at most 500 public paths plus an `other` counter per site.
+
+Request bounds are 2,048 body bytes, 64 admitted event requests (including body
+readers and rollover waiters), 128 connections, and 8 KiB of headers. Body and
+header deadlines are 5 seconds; request/socket deadlines are 10 seconds and
+idle keep-alive is 5 seconds. Oversized bodies stop buffering and close with
+413; timed-out bodies close with 408; excess admitted work receives 503.
+These are protective defaults, not measured throughput limits. The proxy must
+enforce compatible limits and preserve the existing no-access-log boundary.
+
+SIGTERM/SIGINT stop admission, drain existing requests, and flush before exit.
+Shutdown is capped at 15 seconds and exits unsuccessfully if persistence fails
+or the deadline expires. Deployment must allow more than 15 seconds of grace.
+
+**Exactly one collector owns writes to the data directory.** Do not run
+multiple replicas against it or execute `node app/finalize.js` while the
+collector is running. That command is offline maintenance; routine daily
+finalization now belongs to the collector. Read-only reporting/export can
+continue. Before deploying this revision, the infrastructure owner must check
+external writers/finalizer schedules, shutdown grace, resource isolation and
+proxy limits. The batching change requires no browser client or consent-copy
+change.
 
 ## License
 
